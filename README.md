@@ -21,20 +21,20 @@ In a Digital Asset Lifecycle Management (DALM) program, establishing a traceable
 ## 🛠️ Key Portal Features
 
 ### 1. Interactive Review Editor & Form
-- **Dynamic Selectors**: Automatically maps Features to their corresponding parent Epics based on the program matrix.
+- **Workbook Reference Guide**: A collapsible pop-up guide containing the full Digital Asset Lifecycle Management (DALM) training framework (OKRs, Epics, Feature mappings, KPIs, and Gherkin rules) is accessible with one click.
 - **Real-Time Analysis**: Scans title, description, and acceptance criteria fields on every keystroke, dynamically recalculating the score and rendering feedback.
 - **Example Preloaders**: Allows testing the evaluator instantly by loading predefined high-quality stories (e.g., *US-01.1.1 Cloud Storage Connector*) and poor-quality backlog items directly from the dropdown.
 
 ### 2. Multi-Mode Inputs (Manual & File Upload)
 - **Manual Form Entry**: Direct field-by-field entry for writing new stories.
-- **Batch CSV Import**: Load lists of backlog items via a CSV upload, which parses columns (ID, Title, Story Description, Acceptance Criteria) and displays them in a selectable queue.
+- **Batch CSV Import**: Load lists of backlog items via a CSV upload, which parses columns (ID, Title, Story Description, Acceptance Criteria, Epic, Feature, OKR, KPI) and displays them in a selectable queue.
 - **Client-Side PDF Text Extraction**: Upload the program workbook PDF. The portal uses **PDF.js** via CDN to read document pages, uses natural language heuristics to extract user stories, and automatically imports them.
 
 ### 3. Comprehensive Evaluation Engine (`evaluator.js`)
 The story quality score (up to **100%**) is evaluated across four core dimensions:
 *   **Template Structure (25%)**: Validates the presence of `As a`, `I want to`, and `So that` blocks. Deducts points for generic personas (like "User") and complex conjunctions in actions.
 *   **Gherkin Acceptance Criteria (25%)**: Scans criteria for BDD keywords. Confirms that every scenario contains pre-conditions (`Given`), triggers (`When`), and outcomes (`Then`).
-*   **Program Traceability (25%)**: Confirms alignment with the program Epics (`E-01` through `E-05`) and displays the specific parent OKRs and KPI metrics targeted.
+*   **Program Traceability (25%)**: Evaluates whether Epic and Feature mappings are specified, along with OKRs and KPIs. If a standard workbook Epic code (e.g., `E-01` to `E-05`) is entered, the engine runs a reference check and displays recommendation guidelines. Custom mapping is supported without scoring penalties.
 *   **Non-Functional Requirements (25%)**: Scans text for four categories:
     *   *Security & RBAC* (e.g., authentication, permissions, data privacy).
     *   *Performance & SLA* (e.g., latency, size limits, conversion speed).
