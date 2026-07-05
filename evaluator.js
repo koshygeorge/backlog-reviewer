@@ -288,19 +288,47 @@ export function evaluateStory(story) {
 
   // Security scanner
   const securityKeywords = ['auth', 'permission', 'role', 'admin', 'viewer', 'restrict', 'secure', 'oauth', 'encrypt', 'block', 'credentials', 'rights', 'breach', 'governance', 'rbac'];
-  report.nfrCoverage.security = securityKeywords.some(kw => fullText.includes(kw));
+  const matchedSecurity = securityKeywords.filter(kw => fullText.includes(kw));
+  report.nfrCoverage.security = matchedSecurity.length > 0;
 
   // Performance scanner
   const performanceKeywords = ['second', 'minute', 'hour', 'fast', 'ms', 'load', 'ingest', 'performance', 'latency', 'size', 'limit', 'mb', 'gb', 'throughput', 'speed', 'time-to-market'];
-  report.nfrCoverage.performance = performanceKeywords.some(kw => fullText.includes(kw));
+  const matchedPerformance = performanceKeywords.filter(kw => fullText.includes(kw));
+  report.nfrCoverage.performance = matchedPerformance.length > 0;
 
   // Reliability / Audit scanner
   const reliabilityKeywords = ['backup', 'archive', 'retain', 'retention', 'delete', 'remove', 'fail', 'error', 'audit', 'history', 'log', 'schedules', 'policy', 'compliance'];
-  report.nfrCoverage.reliability = reliabilityKeywords.some(kw => fullText.includes(kw));
+  const matchedReliability = reliabilityKeywords.filter(kw => fullText.includes(kw));
+  report.nfrCoverage.reliability = matchedReliability.length > 0;
 
   // Usability scanner
   const usabilityKeywords = ['ui', 'ux', 'accessibility', 'responsive', 'mobile', 'preview', 'interface', 'toast', 'notification', 'satisfaction', 'csat', 'dashboard', 'alert', 'view'];
-  report.nfrCoverage.usability = usabilityKeywords.some(kw => fullText.includes(kw));
+  const matchedUsability = usabilityKeywords.filter(kw => fullText.includes(kw));
+  report.nfrCoverage.usability = matchedUsability.length > 0;
+
+  // NFR Detail Structure
+  report.nfrDetails = {
+    security: {
+      covered: report.nfrCoverage.security,
+      matched: matchedSecurity,
+      missing: 'Requires authorized roles, authentication mechanisms, or encryption standards (e.g. OAuth2, restricted access).'
+    },
+    performance: {
+      covered: report.nfrCoverage.performance,
+      matched: matchedPerformance,
+      missing: 'Requires processing speed, response latency limits, upload size restrictions, or target throughput SLAs.'
+    },
+    reliability: {
+      covered: report.nfrCoverage.reliability,
+      matched: matchedReliability,
+      missing: 'Requires audit trails, exception logging, retention policies, backup guidelines, or compliance standards.'
+    },
+    usability: {
+      covered: report.nfrCoverage.usability,
+      matched: matchedUsability,
+      missing: 'Requires UI notifications, user feedback, error display, accessibility standards, or CSAT goals.'
+    }
+  };
 
   if (report.nfrCoverage.security) {
     nfrScore += 6;

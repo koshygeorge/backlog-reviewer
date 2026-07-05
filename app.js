@@ -350,8 +350,8 @@ function renderReport(report) {
     traceBox.innerHTML = '<div class="text-muted" style="font-size:12.5px;">No active Epic mapping to trace Strategic OKRs/KPIs.</div>';
   }
 
-  // 5. NFR Badges
-  updateNfrBadges(report.nfrCoverage);
+  // 5. NFR Checklist Report
+  renderNfrAuditReport(report.nfrDetails);
 
   // 6. Actionable Improvements & Split Recommendations
   const recsContainer = document.getElementById('recs-container');
@@ -398,21 +398,45 @@ function renderReport(report) {
   }
 }
 
-function updateNfrBadges(coverage) {
-  const badges = {
-    security: document.getElementById('badge-security'),
-    performance: document.getElementById('badge-performance'),
-    reliability: document.getElementById('badge-reliability'),
-    usability: document.getElementById('badge-usability')
+function renderNfrAuditReport(nfrDetails) {
+  const container = document.getElementById('nfr-audit-list');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const categories = {
+    security: { title: 'Security & Access Control (RBAC)', icon: '🔒' },
+    performance: { title: 'Performance & SLA Metric', icon: '⚡' },
+    reliability: { title: 'Reliability & Compliance Audit', icon: '📋' },
+    usability: { title: 'Usability & UI Feedback', icon: '👤' }
   };
 
-  Object.keys(badges).forEach(key => {
-    const badge = badges[key];
-    if (coverage[key]) {
-      badge.classList.add('covered');
+  Object.keys(categories).forEach(key => {
+    const detail = nfrDetails[key];
+    const category = categories[key];
+    const itemEl = document.createElement('div');
+    itemEl.className = `check-item ${detail.covered ? 'pass' : 'fail'}`;
+
+    let iconSvg = '';
+    if (detail.covered) {
+      iconSvg = `<svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18" style="color:var(--success);"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>`;
     } else {
-      badge.classList.remove('covered');
+      iconSvg = `<svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18" style="color:var(--danger);"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>`;
     }
+
+    const matchedText = detail.covered 
+      ? `<span style="color:var(--success); font-weight:600; font-size:11px;">Matched keywords: ${detail.matched.map(w => `'${w}'`).join(', ')}</span>`
+      : `<span style="color:var(--danger); font-weight:600; font-size:11px;">Missing:</span> <span style="font-size:11px; color:var(--text-secondary);">${detail.missing}</span>`;
+
+    itemEl.innerHTML = `
+      <div class="check-icon" style="margin-top: 1px;">${iconSvg}</div>
+      <div class="check-text">
+        <h4 style="font-size:13.5px; font-weight:600; display:flex; align-items:center; gap:6px;">
+          <span>${category.icon}</span> ${category.title}
+        </h4>
+        <p style="margin-top: 4px; line-height:1.4;">${matchedText}</p>
+      </div>
+    `;
+    container.appendChild(itemEl);
   });
 }
 
