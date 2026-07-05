@@ -198,74 +198,83 @@ export function evaluateStory(story) {
   let traceScore = 0;
   const customOkr = (story.okr || '').trim();
   const customKpi = (story.kpi || '').trim();
+  const isIndependent = !!story.isIndependent;
 
-  if (epicId) {
-    traceScore += 10;
+  if (isIndependent) {
+    traceScore = 25;
     report.sections.traceability.items.push({
       status: 'pass',
-      text: `Epic specified: "${epicId}".`
-    });
-
-    const refEpic = epics[epicId];
-    if (refEpic) {
-      report.sections.traceability.items.push({
-        status: 'pass',
-        text: `💡 Aligns with Workbook Reference Epic: "${refEpic.title}".`
-      });
-    }
-  } else {
-    report.sections.traceability.items.push({
-      status: 'fail',
-      text: 'Missing Epic mapping. Stories should trace back to an Epic.'
-    });
-    report.recommendations.push('Map this story to a parent Epic to establish business context.');
-  }
-
-  if (featureId) {
-    traceScore += 10;
-    report.sections.traceability.items.push({
-      status: 'pass',
-      text: `Feature specified: "${featureId}".`
-    });
-
-    const refEpic = epics[epicId];
-    if (refEpic && refEpic.features && refEpic.features[featureId]) {
-      report.sections.traceability.items.push({
-        status: 'pass',
-        text: `💡 Aligns with Workbook Reference Feature: "${refEpic.features[featureId]}".`
-      });
-    }
-  } else {
-    report.sections.traceability.items.push({
-      status: 'fail',
-      text: 'Missing Feature mapping. Stories should map to a functional feature.'
-    });
-    report.recommendations.push('Map this story to a Feature to define the product capability.');
-  }
-
-  if (customOkr || customKpi) {
-    traceScore += 5;
-    const okrText = customOkr ? `OKR: ${customOkr}` : '';
-    const kpiText = customKpi ? `KPI: ${customKpi}` : '';
-    const sep = (customOkr && customKpi) ? ' | ' : '';
-    report.sections.traceability.items.push({
-      status: 'pass',
-      text: `Traceability fields: ${okrText}${sep}${kpiText}`
+      text: 'Independent User Story: No Epic/Feature mapping required.'
     });
   } else {
-    const refEpic = epics[epicId];
-    if (refEpic && refEpic.linkedOkrs && refEpic.linkedOkrs.length > 0) {
-      traceScore += 5;
+    if (epicId) {
+      traceScore += 10;
       report.sections.traceability.items.push({
         status: 'pass',
-        text: `Traces to Workbook Reference OKRs: ${refEpic.linkedOkrs.join(', ')}`
+        text: `Epic specified: "${epicId}".`
       });
+
+      const refEpic = epics[epicId];
+      if (refEpic) {
+        report.sections.traceability.items.push({
+          status: 'pass',
+          text: `💡 Aligns with Workbook Reference Epic: "${refEpic.title}".`
+        });
+      }
     } else {
       report.sections.traceability.items.push({
-        status: 'warning',
-        text: 'No OKR/KPI mappings specified. This may impact business value tracking.'
+        status: 'fail',
+        text: 'Missing Epic mapping. Stories should trace back to an Epic.'
       });
-      report.recommendations.push('Optionally specify a Linked OKR or Impacted KPI to quantify the story\'s business realization.');
+      report.recommendations.push('Map this story to a parent Epic to establish business context.');
+    }
+
+    if (featureId) {
+      traceScore += 10;
+      report.sections.traceability.items.push({
+        status: 'pass',
+        text: `Feature specified: "${featureId}".`
+      });
+
+      const refEpic = epics[epicId];
+      if (refEpic && refEpic.features && refEpic.features[featureId]) {
+        report.sections.traceability.items.push({
+          status: 'pass',
+          text: `💡 Aligns with Workbook Reference Feature: "${refEpic.features[featureId]}".`
+        });
+      }
+    } else {
+      report.sections.traceability.items.push({
+        status: 'fail',
+        text: 'Missing Feature mapping. Stories should map to a functional feature.'
+      });
+      report.recommendations.push('Map this story to a Feature to define the product capability.');
+    }
+
+    if (customOkr || customKpi) {
+      traceScore += 5;
+      const okrText = customOkr ? `OKR: ${customOkr}` : '';
+      const kpiText = customKpi ? `KPI: ${customKpi}` : '';
+      const sep = (customOkr && customKpi) ? ' | ' : '';
+      report.sections.traceability.items.push({
+        status: 'pass',
+        text: `Traceability fields: ${okrText}${sep}${kpiText}`
+      });
+    } else {
+      const refEpic = epics[epicId];
+      if (refEpic && refEpic.linkedOkrs && refEpic.linkedOkrs.length > 0) {
+        traceScore += 5;
+        report.sections.traceability.items.push({
+          status: 'pass',
+          text: `Traces to Workbook Reference OKRs: ${refEpic.linkedOkrs.join(', ')}`
+        });
+      } else {
+        report.sections.traceability.items.push({
+          status: 'warning',
+          text: 'No OKR/KPI mappings specified. This may impact business value tracking.'
+        });
+        report.recommendations.push('Optionally specify a Linked OKR or Impacted KPI to quantify the story\'s business realization.');
+      }
     }
   }
 

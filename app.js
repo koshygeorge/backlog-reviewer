@@ -108,6 +108,47 @@ function setupEventListeners() {
 
   // Theme Toggle Button
   document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+
+  // Independent Checkbox listener
+  const independentCheckbox = document.getElementById('story-independent');
+  const traceabilityContainer = document.getElementById('traceability-fields-container');
+  independentCheckbox.addEventListener('change', () => {
+    if (independentCheckbox.checked) {
+      traceabilityContainer.style.opacity = '0.5';
+      traceabilityContainer.style.pointerEvents = 'none';
+    } else {
+      traceabilityContainer.style.opacity = '1';
+      traceabilityContainer.style.pointerEvents = 'auto';
+    }
+    readFormIntoState();
+    runEvaluation();
+  });
+
+  // Submit Button Handler
+  document.getElementById('submit-story-btn').addEventListener('click', () => {
+    readFormIntoState();
+    
+    // Add to importedStories queue
+    const index = state.importedStories.findIndex(s => s.id === state.currentStory.id);
+    if (index >= 0) {
+      state.importedStories[index] = { ...state.currentStory };
+    } else {
+      const newId = state.currentStory.id === 'US-NEW' || state.currentStory.id === 'US-CUSTOM' 
+        ? `US-SAV-${state.importedStories.length + 1}` 
+        : state.currentStory.id;
+      
+      const newStory = {
+        ...state.currentStory,
+        id: newId
+      };
+      state.importedStories.push(newStory);
+      state.selectedImportedIndex = state.importedStories.length - 1;
+    }
+    
+    renderImportedStoriesList();
+    runEvaluation();
+    switchTab('imported');
+  });
 }
 
 // Sync Form Inputs to State
@@ -119,6 +160,7 @@ function readFormIntoState() {
     featureId: document.getElementById('story-feature').value,
     okr: document.getElementById('story-okr').value,
     kpi: document.getElementById('story-kpi').value,
+    isIndependent: document.getElementById('story-independent').checked,
     priority: document.getElementById('priority-select').value,
     storyPoints: Number(document.getElementById('story-points').value) || 0,
     asA: document.getElementById('story-asa').value,
@@ -136,6 +178,19 @@ function writeStateToForm() {
   document.getElementById('story-feature').value = state.currentStory.featureId || '';
   document.getElementById('story-okr').value = state.currentStory.okr || '';
   document.getElementById('story-kpi').value = state.currentStory.kpi || '';
+  
+  const isIndependent = !!state.currentStory.isIndependent;
+  document.getElementById('story-independent').checked = isIndependent;
+  
+  const traceabilityContainer = document.getElementById('traceability-fields-container');
+  if (isIndependent) {
+    traceabilityContainer.style.opacity = '0.5';
+    traceabilityContainer.style.pointerEvents = 'none';
+  } else {
+    traceabilityContainer.style.opacity = '1';
+    traceabilityContainer.style.pointerEvents = 'auto';
+  }
+
   document.getElementById('priority-select').value = state.currentStory.priority || 'Medium';
   document.getElementById('story-points').value = state.currentStory.storyPoints || 0;
   document.getElementById('story-asa').value = state.currentStory.asA || '';
