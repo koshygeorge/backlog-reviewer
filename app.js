@@ -404,14 +404,17 @@ function renderNfrAuditReport(nfrDetails) {
   container.innerHTML = '';
 
   const categories = {
+    performance: { title: 'Performance Metric', icon: '⚡' },
+    scalability: { title: 'Scalability Target', icon: '📈' },
+    loadtesting: { title: 'Load Testing Benchmark', icon: '🧪' },
+    stability: { title: 'Stability & Uptime SLA', icon: '🛡️' },
     security: { title: 'Security & Access Control (RBAC)', icon: '🔒' },
-    performance: { title: 'Performance & SLA Metric', icon: '⚡' },
-    reliability: { title: 'Reliability & Compliance Audit', icon: '📋' },
-    usability: { title: 'Usability & UI Feedback', icon: '👤' }
+    documentation: { title: 'Documentation & Audit Log', icon: '📝' }
   };
 
   Object.keys(categories).forEach(key => {
     const detail = nfrDetails[key];
+    if (!detail) return;
     const category = categories[key];
     const itemEl = document.createElement('div');
     itemEl.className = `check-item ${detail.covered ? 'pass' : 'fail'}`;

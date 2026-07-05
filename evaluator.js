@@ -277,7 +277,6 @@ export function evaluateStory(story) {
       }
     }
   }
-
   report.sections.traceability.score = traceScore;
 
   // ==========================================
@@ -286,85 +285,98 @@ export function evaluateStory(story) {
   let nfrScore = 0;
   const fullText = `${title} ${asA} ${iWantTo} ${soThat} ${ac}`.toLowerCase();
 
-  // Security scanner
-  const securityKeywords = ['auth', 'permission', 'role', 'admin', 'viewer', 'restrict', 'secure', 'oauth', 'encrypt', 'block', 'credentials', 'rights', 'breach', 'governance', 'rbac'];
-  const matchedSecurity = securityKeywords.filter(kw => fullText.includes(kw));
-  report.nfrCoverage.security = matchedSecurity.length > 0;
-
-  // Performance scanner
-  const performanceKeywords = ['second', 'minute', 'hour', 'fast', 'ms', 'load', 'ingest', 'performance', 'latency', 'size', 'limit', 'mb', 'gb', 'throughput', 'speed', 'time-to-market'];
+  // 1. Performance scanner
+  const performanceKeywords = ['performance', 'speed', 'latency', 'fast', 'response', 'ms', 'second', 'seconds', 'throughput', 'time-to-market'];
   const matchedPerformance = performanceKeywords.filter(kw => fullText.includes(kw));
-  report.nfrCoverage.performance = matchedPerformance.length > 0;
+  const hasPerformance = matchedPerformance.length > 0;
 
-  // Reliability / Audit scanner
-  const reliabilityKeywords = ['backup', 'archive', 'retain', 'retention', 'delete', 'remove', 'fail', 'error', 'audit', 'history', 'log', 'schedules', 'policy', 'compliance'];
-  const matchedReliability = reliabilityKeywords.filter(kw => fullText.includes(kw));
-  report.nfrCoverage.reliability = matchedReliability.length > 0;
+  // 2. Scalability scanner
+  const scalabilityKeywords = ['scale', 'scalability', 'sizing', 'growth', 'volume', 'concurrent', 'users', 'expand', 'mb', 'gb', 'tb', 'size', 'limit'];
+  const matchedScalability = scalabilityKeywords.filter(kw => fullText.includes(kw));
+  const hasScalability = matchedScalability.length > 0;
 
-  // Usability scanner
-  const usabilityKeywords = ['ui', 'ux', 'accessibility', 'responsive', 'mobile', 'preview', 'interface', 'toast', 'notification', 'satisfaction', 'csat', 'dashboard', 'alert', 'view'];
-  const matchedUsability = usabilityKeywords.filter(kw => fullText.includes(kw));
-  report.nfrCoverage.usability = matchedUsability.length > 0;
+  // 3. Load Testing scanner
+  const loadTestingKeywords = ['load test', 'load-testing', 'stress test', 'stress-testing', 'volume test', 'concurrency test', 'benchmark', 'simulat'];
+  const matchedLoadTesting = loadTestingKeywords.filter(kw => fullText.includes(kw));
+  const hasLoadTesting = matchedLoadTesting.length > 0;
 
-  // NFR Detail Structure
+  // 4. Stability scanner
+  const stabilityKeywords = ['stability', 'stable', 'reliability', 'uptime', 'crash', 'failover', 'robust', 'redundant', 'backup', 'sla', 'availability'];
+  const matchedStability = stabilityKeywords.filter(kw => fullText.includes(kw));
+  const hasStability = matchedStability.length > 0;
+
+  // 5. Security scanner
+  const securityKeywords = ['security', 'secure', 'auth', 'permission', 'role', 'admin', 'viewer', 'restrict', 'oauth', 'encrypt', 'block', 'credentials', 'rights', 'breach', 'governance', 'rbac'];
+  const matchedSecurity = securityKeywords.filter(kw => fullText.includes(kw));
+  const hasSecurity = matchedSecurity.length > 0;
+
+  // 6. Documentation scanner
+  const documentationKeywords = ['documentation', 'document', 'doc', 'guide', 'wiki', 'comment', 'readme', 'manual', 'log', 'records', 'audit', 'history'];
+  const matchedDocumentation = documentationKeywords.filter(kw => fullText.includes(kw));
+  const hasDocumentation = matchedDocumentation.length > 0;
+
+  report.nfrCoverage = {
+    performance: hasPerformance,
+    scalability: hasScalability,
+    loadtesting: hasLoadTesting,
+    stability: hasStability,
+    security: hasSecurity,
+    documentation: hasDocumentation
+  };
+
   report.nfrDetails = {
-    security: {
-      covered: report.nfrCoverage.security,
-      matched: matchedSecurity,
-      missing: 'Requires authorized roles, authentication mechanisms, or encryption standards (e.g. OAuth2, restricted access).'
-    },
     performance: {
-      covered: report.nfrCoverage.performance,
+      covered: hasPerformance,
       matched: matchedPerformance,
-      missing: 'Requires processing speed, response latency limits, upload size restrictions, or target throughput SLAs.'
+      missing: 'Add target latency limits (e.g. "within 3 seconds"), execution speeds, or page response metrics.'
     },
-    reliability: {
-      covered: report.nfrCoverage.reliability,
-      matched: matchedReliability,
-      missing: 'Requires audit trails, exception logging, retention policies, backup guidelines, or compliance standards.'
+    scalability: {
+      covered: hasScalability,
+      matched: matchedScalability,
+      missing: 'Add scalability constraints (e.g. concurrency limits, data volume targets, or expanding bandwidth).'
     },
-    usability: {
-      covered: report.nfrCoverage.usability,
-      matched: matchedUsability,
-      missing: 'Requires UI notifications, user feedback, error display, accessibility standards, or CSAT goals.'
+    loadtesting: {
+      covered: hasLoadTesting,
+      matched: matchedLoadTesting,
+      missing: 'Add testing limits or benchmark targets (e.g. stress test parameters, concurrent request simulations).'
+    },
+    stability: {
+      covered: hasStability,
+      matched: matchedStability,
+      missing: 'Add robustness constraints (e.g. uptime SLAs, system failover plans, backup cycles, or error recovery).'
+    },
+    security: {
+      covered: hasSecurity,
+      matched: matchedSecurity,
+      missing: 'Add role access policies, authorization (OAuth2), data encryption standards, or credential protection.'
+    },
+    documentation: {
+      covered: hasDocumentation,
+      matched: matchedDocumentation,
+      missing: 'Add documentation criteria (e.g. update logs, audit histories, user manuals, or system wiki records).'
     }
   };
 
-  if (report.nfrCoverage.security) {
-    nfrScore += 6;
-    report.sections.nfr.items.push({ status: 'pass', text: 'Security & Access Control (RBAC) addressed.' });
-  } else {
-    report.sections.nfr.items.push({ status: 'fail', text: 'Missing Security / Access Control references.' });
-    report.recommendations.push('Include security or access constraints (e.g., who is authorized, role checks, data protection).');
-  }
+  if (hasPerformance) { nfrScore += 4; report.sections.nfr.items.push({ status: 'pass', text: 'Performance NFR addressed.' }); }
+  else { report.sections.nfr.items.push({ status: 'fail', text: 'Missing Performance NFR.' }); report.recommendations.push('Add Performance requirements (e.g., speed, response time).'); }
 
-  if (report.nfrCoverage.performance) {
-    nfrScore += 6;
-    report.sections.nfr.items.push({ status: 'pass', text: 'Performance, Speed, or Size Limits addressed.' });
-  } else {
-    report.sections.nfr.items.push({ status: 'fail', text: 'Missing Performance or SLA targets.' });
-    report.recommendations.push('Add performance SLA expectations (e.g., upload time limits, page load speeds, file size restrictions).');
-  }
+  if (hasScalability) { nfrScore += 4; report.sections.nfr.items.push({ status: 'pass', text: 'Scalability NFR addressed.' }); }
+  else { report.sections.nfr.items.push({ status: 'fail', text: 'Missing Scalability NFR.' }); report.recommendations.push('Add Scalability requirements (e.g., growth sizing, concurrent limits).'); }
 
-  if (report.nfrCoverage.reliability) {
-    nfrScore += 6;
-    report.sections.nfr.items.push({ status: 'pass', text: 'Reliability, Audit logs, or Archival policies addressed.' });
-  } else {
-    report.sections.nfr.items.push({ status: 'fail', text: 'Missing Audit trail or Compliance policies.' });
-    report.recommendations.push('Add audit logging or error recovery scenarios (e.g., logging activity, retention guidelines).');
-  }
+  if (hasLoadTesting) { nfrScore += 4; report.sections.nfr.items.push({ status: 'pass', text: 'Load Testing NFR addressed.' }); }
+  else { report.sections.nfr.items.push({ status: 'fail', text: 'Missing Load Testing NFR.' }); report.recommendations.push('Add Load Testing requirements (e.g., stress test bounds, request volume targets).'); }
 
-  if (report.nfrCoverage.usability) {
-    nfrScore += 7;
-    report.sections.nfr.items.push({ status: 'pass', text: 'Usability, Interface feedback, or CSAT goals addressed.' });
-  } else {
-    report.sections.nfr.items.push({ status: 'fail', text: 'Missing Usability or UI feedback criteria.' });
-    report.recommendations.push('Incorporate UI notifications or usability criteria (e.g., error messages shown to user, toast alerts).');
-  }
+  if (hasStability) { nfrScore += 4; report.sections.nfr.items.push({ status: 'pass', text: 'Stability NFR addressed.' }); }
+  else { report.sections.nfr.items.push({ status: 'fail', text: 'Missing Stability NFR.' }); report.recommendations.push('Add Stability requirements (e.g., uptime SLAs, backup policies).'); }
+
+  if (hasSecurity) { nfrScore += 5; report.sections.nfr.items.push({ status: 'pass', text: 'Security NFR addressed.' }); }
+  else { report.sections.nfr.items.push({ status: 'fail', text: 'Missing Security NFR.' }); report.recommendations.push('Add Security requirements (e.g., RBAC role restrictions, data protection).'); }
+
+  if (hasDocumentation) { nfrScore += 4; report.sections.nfr.items.push({ status: 'pass', text: 'Documentation NFR addressed.' }); }
+  else { report.sections.nfr.items.push({ status: 'fail', text: 'Missing Documentation NFR.' }); report.recommendations.push('Add Documentation requirements (e.g., audit logging, training docs, user guides).'); }
 
   report.sections.nfr.score = nfrScore;
 
-  // ==========================================
   // FINAL SCORE & SPLITTING ADVICE
   // ==========================================
   report.score = report.sections.template.score + 
