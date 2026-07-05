@@ -196,52 +196,77 @@ export function evaluateStory(story) {
   // 3. TRACEABILITY (Max 25)
   // ==========================================
   let traceScore = 0;
-  const epic = epics[epicId];
+  const customOkr = (story.okr || '').trim();
+  const customKpi = (story.kpi || '').trim();
 
-  if (epicId && epic) {
+  if (epicId) {
     traceScore += 10;
     report.sections.traceability.items.push({
       status: 'pass',
-      text: `Aligned with Epic ${epicId}: "${epic.title}".`
+      text: `Epic specified: "${epicId}".`
     });
 
-    if (featureId) {
-      const isFeatureInEpic = epic.features && epic.features[featureId];
-      if (isFeatureInEpic) {
-        traceScore += 10;
-        report.sections.traceability.items.push({
-          status: 'pass',
-          text: `Correctly maps to Feature ${featureId}: "${epic.features[featureId]}".`
-        });
-      } else {
-        report.sections.traceability.items.push({
-          status: 'warning',
-          text: `Feature "${featureId}" is not associated with Epic ${epicId} in the program matrix.`
-        });
-      }
-    } else {
-      report.sections.traceability.items.push({
-        status: 'fail',
-        text: 'No Feature code specified for traceability.'
-      });
-    }
-
-    // OKR Link
-    const linkedOkrs = epic.linkedOkrs || [];
-    if (linkedOkrs.length > 0) {
-      traceScore += 5;
-      const okrDetails = linkedOkrs.map(id => okrs[id] ? `${id} (${okrs[id].objective})` : id).join(', ');
+    const refEpic = epics[epicId];
+    if (refEpic) {
       report.sections.traceability.items.push({
         status: 'pass',
-        text: `Traces to Strategic Objective: ${okrDetails}.`
+        text: `💡 Aligns with Workbook Reference Epic: "${refEpic.title}".`
       });
     }
   } else {
     report.sections.traceability.items.push({
       status: 'fail',
-      text: 'Missing or invalid Epic ID. Stories must trace back to a defined Epic.'
+      text: 'Missing Epic mapping. Stories should trace back to an Epic.'
     });
-    report.recommendations.push('Link this user story to one of the Program Epics (E-01 to E-05) to ensure strategic business value.');
+    report.recommendations.push('Map this story to a parent Epic to establish business context.');
+  }
+
+  if (featureId) {
+    traceScore += 10;
+    report.sections.traceability.items.push({
+      status: 'pass',
+      text: `Feature specified: "${featureId}".`
+    });
+
+    const refEpic = epics[epicId];
+    if (refEpic && refEpic.features && refEpic.features[featureId]) {
+      report.sections.traceability.items.push({
+        status: 'pass',
+        text: `💡 Aligns with Workbook Reference Feature: "${refEpic.features[featureId]}".`
+      });
+    }
+  } else {
+    report.sections.traceability.items.push({
+      status: 'fail',
+      text: 'Missing Feature mapping. Stories should map to a functional feature.'
+    });
+    report.recommendations.push('Map this story to a Feature to define the product capability.');
+  }
+
+  if (customOkr || customKpi) {
+    traceScore += 5;
+    const okrText = customOkr ? `OKR: ${customOkr}` : '';
+    const kpiText = customKpi ? `KPI: ${customKpi}` : '';
+    const sep = (customOkr && customKpi) ? ' | ' : '';
+    report.sections.traceability.items.push({
+      status: 'pass',
+      text: `Traceability fields: ${okrText}${sep}${kpiText}`
+    });
+  } else {
+    const refEpic = epics[epicId];
+    if (refEpic && refEpic.linkedOkrs && refEpic.linkedOkrs.length > 0) {
+      traceScore += 5;
+      report.sections.traceability.items.push({
+        status: 'pass',
+        text: `Traces to Workbook Reference OKRs: ${refEpic.linkedOkrs.join(', ')}`
+      });
+    } else {
+      report.sections.traceability.items.push({
+        status: 'warning',
+        text: 'No OKR/KPI mappings specified. This may impact business value tracking.'
+      });
+      report.recommendations.push('Optionally specify a Linked OKR or Impacted KPI to quantify the story\'s business realization.');
+    }
   }
 
   report.sections.traceability.score = traceScore;

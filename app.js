@@ -36,56 +36,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Initialize form selectors with reference data
 function initDOM() {
-  const epicSelect = document.getElementById('epic-select');
-  const featureSelect = document.getElementById('feature-select');
   const exampleSelect = document.getElementById('example-select');
 
-  // Populate Epic dropdown
-  epicSelect.innerHTML = '<option value="">-- Select Epic --</option>';
-  Object.keys(epics).forEach(key => {
-    const opt = document.createElement('option');
-    opt.value = key;
-    opt.textContent = `${key} - ${epics[key].title}`;
-    epicSelect.appendChild(opt);
-  });
-
   // Populate Example stories dropdown
-  exampleSelect.innerHTML = '<option value="">-- Load Example Story --</option>';
+  exampleSelect.innerHTML = '<option value="">-- Load Workbook Example --</option>';
   exampleStories.forEach(s => {
     const opt = document.createElement('option');
     opt.value = s.id;
     opt.textContent = `${s.id} - ${s.title}`;
     exampleSelect.appendChild(opt);
   });
-
-  updateFeatureOptions();
-}
-
-function updateFeatureOptions() {
-  const epicSelect = document.getElementById('epic-select');
-  const featureSelect = document.getElementById('feature-select');
-  const selectedEpic = epicSelect.value;
-
-  featureSelect.innerHTML = '<option value="">-- Select Feature --</option>';
-  
-  if (selectedEpic && epics[selectedEpic] && epics[selectedEpic].features) {
-    const features = epics[selectedEpic].features;
-    Object.keys(features).forEach(key => {
-      const opt = document.createElement('option');
-      opt.value = key;
-      opt.textContent = `${key} - ${features[key]}`;
-      featureSelect.appendChild(opt);
-    });
-  }
 }
 
 // Setup Event Listeners
 function setupEventListeners() {
   // Real-time evaluation on manual inputs
   const inputs = [
-    'story-title', 'epic-select', 'feature-select', 'priority-select', 
-    'story-points', 'story-asa', 'story-iwantto', 'story-sothat', 
-    'story-ac'
+    'story-title', 'story-epic', 'story-feature', 'story-okr', 'story-kpi', 
+    'priority-select', 'story-points', 'story-asa', 'story-iwantto', 
+    'story-sothat', 'story-ac'
   ];
 
   inputs.forEach(id => {
@@ -96,13 +65,6 @@ function setupEventListeners() {
         runEvaluation();
       });
     }
-  });
-
-  // Epic selector changes features list
-  document.getElementById('epic-select').addEventListener('change', () => {
-    updateFeatureOptions();
-    readFormIntoState();
-    runEvaluation();
   });
 
   // Examples Selector
@@ -153,8 +115,10 @@ function readFormIntoState() {
   state.currentStory = {
     id: state.currentStory.id || 'US-CUSTOM',
     title: document.getElementById('story-title').value,
-    epicId: document.getElementById('epic-select').value,
-    featureId: document.getElementById('feature-select').value,
+    epicId: document.getElementById('story-epic').value,
+    featureId: document.getElementById('story-feature').value,
+    okr: document.getElementById('story-okr').value,
+    kpi: document.getElementById('story-kpi').value,
     priority: document.getElementById('priority-select').value,
     storyPoints: Number(document.getElementById('story-points').value) || 0,
     asA: document.getElementById('story-asa').value,
@@ -168,9 +132,10 @@ function readFormIntoState() {
 // Sync State back to Form Inputs
 function writeStateToForm() {
   document.getElementById('story-title').value = state.currentStory.title || '';
-  document.getElementById('epic-select').value = state.currentStory.epicId || '';
-  updateFeatureOptions();
-  document.getElementById('feature-select').value = state.currentStory.featureId || '';
+  document.getElementById('story-epic').value = state.currentStory.epicId || '';
+  document.getElementById('story-feature').value = state.currentStory.featureId || '';
+  document.getElementById('story-okr').value = state.currentStory.okr || '';
+  document.getElementById('story-kpi').value = state.currentStory.kpi || '';
   document.getElementById('priority-select').value = state.currentStory.priority || 'Medium';
   document.getElementById('story-points').value = state.currentStory.storyPoints || 0;
   document.getElementById('story-asa').value = state.currentStory.asA || '';
@@ -271,37 +236,55 @@ function renderReport(report) {
   const traceBox = document.getElementById('traceability-pathway');
   traceBox.innerHTML = '';
   
-  const epic = epics[state.currentStory.epicId];
-  if (epic) {
-    // Render Epic link
-    const epicDiv = document.createElement('div');
-    epicDiv.className = 'trace-step';
-    epicDiv.innerHTML = `<span class="trace-badge">Epic</span><span class="trace-val">${epic.id} - ${epic.title}</span>`;
-    traceBox.appendChild(epicDiv);
+  const epicId = (state.currentStory.epicId || '').trim();
+  const featureId = (state.currentStory.featureId || '').trim();
+  const customOkr = (state.currentStory.okr || '').trim();
+  const customKpi = (state.currentStory.kpi || '').trim();
+  
+  const refEpic = epics[epicId];
 
-    // Render Feature link
-    if (state.currentStory.featureId && epic.features[state.currentStory.featureId]) {
+  if (epicId || featureId || customOkr || customKpi) {
+    if (epicId) {
+      const epicDiv = document.createElement('div');
+      epicDiv.className = 'trace-step';
+      const epicTitle = refEpic ? ` (${refEpic.title})` : '';
+      epicDiv.innerHTML = `<span class="trace-badge">Epic</span><span class="trace-val">${epicId}${epicTitle}</span>`;
+      traceBox.appendChild(epicDiv);
+    }
+    
+    if (featureId) {
       const featDiv = document.createElement('div');
       featDiv.className = 'trace-step kpi';
-      featDiv.innerHTML = `<span class="trace-badge">Feature</span><span class="trace-val">${state.currentStory.featureId} - ${epic.features[state.currentStory.featureId]}</span>`;
+      const refFeat = (refEpic && refEpic.features) ? refEpic.features[featureId] : '';
+      const featTitle = refFeat ? ` (${refFeat})` : '';
+      featDiv.innerHTML = `<span class="trace-badge">Feature</span><span class="trace-val">${featureId}${featTitle}</span>`;
       traceBox.appendChild(featDiv);
     }
-
-    // Render OKRs
-    const linkedOkrs = epic.linkedOkrs || [];
-    linkedOkrs.forEach(okrId => {
-      const okrObj = okrs[okrId];
-      if (okrObj) {
-        const okrDiv = document.createElement('div');
-        okrDiv.className = 'trace-step okr';
-        okrDiv.innerHTML = `<span class="trace-badge">OKR</span><span class="trace-val">${okrObj.id}: ${okrObj.objective}</span>`;
-        traceBox.appendChild(okrDiv);
-      }
-    });
-
-    // Render primary KPIs
-    if (epic.kpis && epic.kpis.length > 0) {
-      epic.kpis.forEach(kpi => {
+    
+    if (customOkr) {
+      const okrDiv = document.createElement('div');
+      okrDiv.className = 'trace-step okr';
+      okrDiv.innerHTML = `<span class="trace-badge">OKR</span><span class="trace-val">${customOkr}</span>`;
+      traceBox.appendChild(okrDiv);
+    } else if (refEpic && refEpic.linkedOkrs) {
+      refEpic.linkedOkrs.forEach(okrId => {
+        const okrObj = okrs[okrId];
+        if (okrObj) {
+          const okrDiv = document.createElement('div');
+          okrDiv.className = 'trace-step okr';
+          okrDiv.innerHTML = `<span class="trace-badge">OKR</span><span class="trace-val">${okrObj.id}: ${okrObj.objective}</span>`;
+          traceBox.appendChild(okrDiv);
+        }
+      });
+    }
+    
+    if (customKpi) {
+      const kpiDiv = document.createElement('div');
+      kpiDiv.className = 'trace-step kpi';
+      kpiDiv.innerHTML = `<span class="trace-badge">KPI</span><span class="trace-val">${customKpi}</span>`;
+      traceBox.appendChild(kpiDiv);
+    } else if (refEpic && refEpic.kpis) {
+      refEpic.kpis.forEach(kpi => {
         const kpiDiv = document.createElement('div');
         kpiDiv.className = 'trace-step kpi';
         kpiDiv.innerHTML = `<span class="trace-badge">KPI Target</span><span class="trace-val"><strong>${kpi.name}</strong>: ${kpi.target} (Measure: ${kpi.measurement})</span>`;
@@ -502,6 +485,8 @@ function parseCSV(text) {
       else if (header.includes('title')) story.title = val;
       else if (header.includes('epic')) story.epicId = val;
       else if (header.includes('feature')) story.featureId = val;
+      else if (header.includes('okr')) story.okr = val;
+      else if (header.includes('kpi')) story.kpi = val;
       else if (header.includes('priority')) story.priority = val;
       else if (header.includes('points') || header.includes('sp')) story.storyPoints = Number(val) || 5;
       else if (header.includes('asa') || header.includes('persona')) story.asA = val;
@@ -526,8 +511,10 @@ function parseCSV(text) {
       stories.push({
         id: story.id || `US-CSV-${i}`,
         title: story.title,
-        epicId: story.epicId || 'E-01',
-        featureId: story.featureId || 'F-01.1',
+        epicId: story.epicId || '',
+        featureId: story.featureId || '',
+        okr: story.okr || '',
+        kpi: story.kpi || '',
         priority: story.priority || 'Medium',
         storyPoints: story.storyPoints || 5,
         asA: story.asA || '',
