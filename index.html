@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agile Backlog Quality Review Portal</title>
+  <meta name="description" content="Validate user stories against OKR, KPI, Gherkin BDD, and Non-functional Requirements.">
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- PDF.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- Top Premium Navigation -->
+    <header>
+      <div class="logo-container">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <h1>Agile Quality Portal</h1>
+          <span>OKR-Aligned Backlog Reviewer</span>
+        </div>
+      </div>
+      
+      <div class="header-controls">
+        <div class="example-selector-container" style="margin-bottom:0;">
+          <select id="example-select" class="btn btn-secondary btn-sm" aria-label="Load Example Story">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+        
+        <button id="theme-toggle" class="btn-icon-only" title="Toggle Theme" aria-label="Toggle Theme">
+          <span id="theme-icon">
+            <!-- Default Dark theme shows Sun icon -->
+            <svg viewBox="0 0 20 20" fill="currentColor" style="width:20px;height:20px;">
+              <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.46 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/>
+            </svg>
+          </span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace Dashboard -->
+    <main class="dashboard-grid">
+      
+      <!-- LEFT PANEL: Backlog Input & Editor -->
+      <section class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+            </svg>
+            Backlog Input
+          </h2>
+          <span style="font-size:11px; color:var(--text-muted);">Enter or upload items</span>
+        </div>
+
+        <div class="panel-body">
+          <!-- Mode Tabs -->
+          <div class="tabs-control">
+            <button id="tab-manual" class="tab-btn active" onclick="switchTab('manual')">Manual Entry</button>
+            <button id="tab-upload" class="tab-btn" onclick="switchTab('upload')">Upload File (CSV/PDF)</button>
+            <button id="tab-imported" class="tab-btn" onclick="switchTab('imported')">Imported Backlog</button>
+          </div>
+
+          <!-- TAB 1: Manual Entry Form -->
+          <div id="content-manual" class="tab-content">
+            <div class="form-group">
+              <label for="story-title">Story Title</label>
+              <input type="text" id="story-title" placeholder="e.g., Cloud Storage Connector">
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="epic-select">Program Epic Mapping</label>
+                <select id="epic-select">
+                  <!-- Populated dynamically -->
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="feature-select">Program Feature Mapping</label>
+                <select id="feature-select">
+                  <option value="">-- Select Feature --</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="priority-select">Priority</label>
+                <select id="priority-select">
+                  <option value="Critical">Critical</option>
+                  <option value="High">High</option>
+                  <option value="Medium" selected>Medium</option>
+                  <option value="Low">Low</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="story-points">Story Points (Effort Estimation)</label>
+                <input type="number" id="story-points" min="0" value="5" placeholder="e.g., 5, 8, 13">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>User Story Description Template</label>
+              <div style="display:flex; flex-direction:column; gap:10px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-weight:600; min-width:80px; font-size:13px; color:var(--accent-primary);">As a</span>
+                  <input type="text" id="story-asa" placeholder="persona/role, e.g., Digital Asset Manager">
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-weight:600; min-width:80px; font-size:13px; color:var(--accent-primary);">I want to</span>
+                  <input type="text" id="story-iwantto" placeholder="action, e.g., connect the DAM to existing S3 buckets">
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-weight:600; min-width:80px; font-size:13px; color:var(--accent-primary);">So that</span>
+                  <input type="text" id="story-sothat" placeholder="value/benefit, e.g., assets are automatically ingested without manual upload">
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="story-ac">Acceptance Criteria (Gherkin Format)</label>
+              <textarea id="story-ac" rows="8" placeholder="Scenario: Valid S3 connection succeeds&#10;Given I am logged in as a DAM Administrator&#10;When I navigate to Settings > Integrations&#10;Then the system validates the connection"></textarea>
+            </div>
+          </div>
+
+          <!-- TAB 2: File Upload Zone -->
+          <div id="content-upload" class="tab-content" style="display:none;">
+            <div class="upload-zone" id="upload-zone">
+              <div class="upload-icon">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                  <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+                </svg>
+              </div>
+              <div class="upload-text">
+                <h3>Drag & Drop Backlog File</h3>
+                <p>Supports CSV (.csv) or Workbook PDF (.pdf)</p>
+              </div>
+              <input type="file" id="file-input" accept=".csv, .pdf" style="display:none;">
+            </div>
+            
+            <div id="upload-status" style="margin-top:16px; font-size:13px; text-align:center; font-weight:500;">
+              <!-- Parsing details shown here -->
+            </div>
+          </div>
+
+          <!-- TAB 3: Imported Backlog List -->
+          <div id="content-imported" class="tab-content" style="display:none;">
+            <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px;">Select an imported story to review and update it.</p>
+            <div class="backlog-list" id="imported-stories-list">
+              <!-- Populated dynamically from files -->
+              <p class="text-muted" style="padding:10px;">No stories imported yet. Try uploading a CSV/PDF under the Upload tab.</p>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- RIGHT PANEL: Live Quality Evaluation & Assessment -->
+      <section class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+            </svg>
+            Interactive Quality Report
+          </h2>
+          <button id="export-btn" class="btn btn-primary btn-sm">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+              <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
+            </svg>
+            Export Report
+          </button>
+        </div>
+
+        <div class="panel-body">
+          
+          <!-- Quality Score Visualizer -->
+          <div class="score-section">
+            <div class="gauge-container">
+              <svg viewBox="0 0 80 80" class="gauge-svg">
+                <circle cx="40" cy="40" r="38" class="gauge-bg"></circle>
+                <circle cx="40" cy="40" r="38" class="gauge-bar" id="gauge-bar" stroke-dasharray="238.76" stroke-dashoffset="0"></circle>
+              </svg>
+              <div class="gauge-text">
+                <span class="gauge-score" id="score-value">0%</span>
+                <span class="gauge-label">Score</span>
+              </div>
+            </div>
+            <div class="score-details-text">
+              <h3>Story Quality Score</h3>
+              <p>Based on template compliance, Gherkin syntax, OKR/KPI traceability, and NFR coverage.</p>
+              <span id="grade-badge" class="trace-badge pass" style="margin-top:6px; display:inline-block;">Sprint Ready</span>
+            </div>
+          </div>
+
+          <!-- Subscore Grid Breakdown -->
+          <div class="subscore-grid">
+            <div class="subscore-card">
+              <div class="subscore-val" id="score-template">0/25</div>
+              <div class="subscore-lbl">Template</div>
+            </div>
+            <div class="subscore-card">
+              <div class="subscore-val" id="score-gherkin">0/25</div>
+              <div class="subscore-lbl">Gherkin</div>
+            </div>
+            <div class="subscore-card">
+              <div class="subscore-val" id="score-traceability">0/25</div>
+              <div class="subscore-lbl">Traceability</div>
+            </div>
+            <div class="subscore-card">
+              <div class="subscore-val" id="score-nfr">0/25</div>
+              <div class="subscore-lbl">NFRs</div>
+            </div>
+          </div>
+
+          <!-- Traceability Pathways -->
+          <div class="traceability-path">
+            <h4 style="font-size:13px; font-weight:600; margin-bottom:10px; color:var(--text-secondary);">Program Traceability Alignment</h4>
+            <div id="traceability-pathway">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <!-- Non-Functional Requirements Coverage -->
+          <div class="traceability-path" style="background:transparent; border-color:var(--border-glass);">
+            <h4 style="font-size:13px; font-weight:600; margin-bottom:10px; color:var(--text-secondary);">Non-Functional Requirements Coverage</h4>
+            <div class="nfr-badges">
+              <div id="badge-security" class="nfr-badge">
+                <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+                Security & RBAC
+              </div>
+              <div id="badge-performance" class="nfr-badge">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-3.3 0-6-2.7-6-6s2.7-6 6-6 6 2.7 6 6-2.7 6-6 6zm1-9h-2v4h2v-4zm0-4h-2v2h2V7z"/></svg>
+                Performance & SLA
+              </div>
+              <div id="badge-reliability" class="nfr-badge">
+                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.7 0 3 1.3 3 3s-1.3 3-3 3-3-1.3-3-3 1.3-3 3-3zm0 12c-2.7 0-5.8 1.3-6 2V5h12v13c-.2-.7-3.3-2-6-2z"/></svg>
+                Reliability & Audit
+              </div>
+              <div id="badge-usability" class="nfr-badge">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/></svg>
+                Usability & UI Feedback
+              </div>
+            </div>
+          </div>
+
+          <!-- Actionable Recommendations -->
+          <div class="recommendations-box" id="recs-container" style="display:none;">
+            <div class="recs-title">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+              </svg>
+              Suggestions for Improvement
+            </div>
+            <ul class="recs-list" id="recs-list">
+              <!-- Populated dynamically -->
+            </ul>
+          </div>
+
+          <!-- Story Splitting Assistant -->
+          <div class="split-card" id="split-container" style="display:none;">
+            <div class="split-header">
+              <h4>🛡️ Breakdown Recommendation</h4>
+              <button id="apply-split-btn" class="btn btn-secondary btn-sm" style="border-color:var(--warning); color:var(--warning);">Apply Split</button>
+            </div>
+            <p style="font-size:12.5px; color:var(--text-secondary); margin-bottom:12px;" id="split-reason-text">
+              This story is too large to fit in a single sprint. Consider splitting it.
+            </p>
+            <div class="split-substories" id="split-substories-box">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- Client-side Tab Switcher Utilities -->
+  <script>
+    function switchTab(tabId) {
+      // Toggle button states
+      const buttons = document.querySelectorAll('.tabs-control .tab-btn');
+      buttons.forEach(btn => {
+        if (btn.id === 'tab-' + tabId) btn.classList.add('active');
+        else btn.classList.remove('active');
+      });
+
+      // Toggle content visibility
+      const contents = document.querySelectorAll('.tab-content');
+      contents.forEach(content => {
+        if (content.id === 'content-' + tabId) content.style.display = 'block';
+        else content.style.display = 'none';
+      });
+    }
+  </script>
+
+  <!-- Load Modules -->
+  <script type="module" src="app.js"></script>
+
+</body>
+</html>
