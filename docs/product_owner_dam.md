@@ -1,4 +1,4 @@
-# Backlog Quality Discovery Interview Notes
+# Discovery Interview Notes - Product Owner (DAM Program)
 **Role Profile**: Product Owner (Asset Lifecycle Management Program)  
 **Context**: Mid-size enterprise building a standardized Digital Asset Management (DAM) strategy, handling asset conceptualization, quality/format standardization, ingestion, consumption by downstream systems, and archival/sunset.
 
