@@ -1,0 +1,10 @@
+{
+  "name": "backlog-reviewer",
+  "version": "1.0.0",
+  "description": "AI-Led Backlog Quality Reviewer MVP",
+  "main": "app.js",
+  "type": "module",
+  "dependencies": {
+    "@google/generative-ai": "^0.14.0"
+  }
+}
