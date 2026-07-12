@@ -102,12 +102,12 @@
 
               <div class="form-row">
                 <div class="form-group">
-                  <label for="story-okr">Linked OKR (Optional)</label>
-                  <input type="text" id="story-okr" placeholder="e.g., OKR-1 or Custom Objective">
+                  <label for="story-okr">Linked OKR (Disabled in Single Story Mode)</label>
+                  <input type="text" id="story-okr" placeholder="Disabled in Single Story Quality mode" disabled style="opacity:0.6; cursor:not-allowed;">
                 </div>
                 <div class="form-group">
-                  <label for="story-kpi">Impacted KPI (Optional)</label>
-                  <input type="text" id="story-kpi" placeholder="e.g., Ingestion cycle time or Custom KPI">
+                  <label for="story-kpi">Impacted KPI (Disabled in Single Story Mode)</label>
+                  <input type="text" id="story-kpi" placeholder="Disabled in Single Story Quality mode" disabled style="opacity:0.6; cursor:not-allowed;">
                 </div>
               </div>
             </div>
@@ -173,6 +173,15 @@
               </div>
               <input type="file" id="file-input" accept=".csv, .pdf" style="display:none;">
             </div>
+
+            <div style="text-align: center; margin-top: 15px;">
+              <button id="download-template-btn" class="btn btn-secondary" style="font-size:12.5px; padding: 8px 16px; border-color: var(--accent-primary); color: var(--accent-primary);">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="vertical-align:middle; margin-right:4px;">
+                  <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
+                </svg>
+                Download CSV Template
+              </button>
+            </div>
             
             <div id="upload-status" style="margin-top:16px; font-size:13px; text-align:center; font-weight:500;">
               <!-- Parsing details shown here -->
@@ -181,6 +190,20 @@
 
           <!-- TAB 3: Imported Backlog List -->
           <div id="content-imported" class="tab-content" style="display:none;">
+            <!-- OKR Readiness Scoreboard -->
+            <div id="okr-readiness-scoreboard" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-glass); border-radius: 12px; padding: 12px 16px; margin-bottom: 20px; display: none;">
+              <h4 style="font-size: 13.5px; font-weight: 600; margin-bottom: 8px; color: var(--accent-primary); display: flex; align-items: center; justify-content: space-between; margin-top: 0;">
+                <span>🎯 Backlog OKR Readiness Scorecard</span>
+                <span id="overall-readiness-badge" class="trace-badge warning">0% Ready</span>
+              </h4>
+              <p style="font-size:11.5px; color:var(--text-secondary); margin-bottom: 12px;">
+                Shows the percentage of user stories traced to each OKR that are sprint-ready (quality score >= 75%).
+              </p>
+              <div id="okr-readiness-list" style="display: flex; flex-direction: column; gap: 8px;">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+
             <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px;">Select an imported story to review and update it.</p>
             <div class="backlog-list" id="imported-stories-list">
               <!-- Populated dynamically from files -->
@@ -289,6 +312,34 @@
             </p>
             <div class="split-substories" id="split-substories-box">
               <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <!-- AI Semantic Gap Analysis (Triggered if OKR Readiness < 75%) -->
+          <div class="split-card" id="ai-gap-container" style="display:none; border-color:var(--accent-primary); background:rgba(79, 172, 254, 0.05); margin-top:20px;">
+            <div class="split-header">
+              <h4 style="color:var(--accent-primary); display:flex; align-items:center; gap:6px; margin:0; font-size:14px; font-weight:600;">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                AI Semantic Gap Analysis (OKR Coverage)
+              </h4>
+              <span id="ai-gap-badge" class="trace-badge" style="background:var(--accent-primary); color:white; font-size:10px;">Below 75% Threshold</span>
+            </div>
+            <p style="font-size:12px; color:var(--text-secondary); margin-bottom:12px; line-height:1.5; margin-top: 8px;">
+              The mathematical backlog readiness score is below the 75% target threshold. The AI coach has scanned your user stories against strategic OKRs to find gaps.
+            </p>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              <div>
+                <strong style="font-size:12px; color:var(--danger); display:block; margin-bottom:4px;">❌ Identified Scope Gaps:</strong>
+                <ul id="ai-gaps-list" style="margin-left: 18px; font-size:12px; line-height:1.5; color:var(--text-secondary); margin-bottom:0; padding-left:0;">
+                  <!-- Dynamic -->
+                </ul>
+              </div>
+              <div style="margin-top:8px;">
+                <strong style="font-size:12px; color:var(--success); display:block; margin-bottom:4px;">💡 Recommended Story Additions:</strong>
+                <ul id="ai-recs-list" style="margin-left: 18px; font-size:12px; line-height:1.5; color:var(--text-secondary); margin-bottom:0; padding-left:0;">
+                  <!-- Dynamic -->
+                </ul>
+              </div>
             </div>
           </div>
 

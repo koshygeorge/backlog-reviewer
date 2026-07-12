@@ -109,6 +109,12 @@ function setupEventListeners() {
   // Theme Toggle Button
   document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
 
+  // Download CSV Template Button
+  const downloadTemplateBtn = document.getElementById('download-template-btn');
+  if (downloadTemplateBtn) {
+    downloadTemplateBtn.addEventListener('click', downloadCSVTemplate);
+  }
+
   // Independent Checkbox listener
   const independentCheckbox = document.getElementById('story-independent');
   const traceabilityContainer = document.getElementById('traceability-fields-container');
@@ -209,10 +215,57 @@ function loadExample(storyId) {
   }
 }
 
+// Cache for AI analyses to avoid duplicate fetches
+const aiAnalysisCache = new Map();
+
 // Run Evaluation & Render Output
 function runEvaluation() {
   const report = evaluateStory(state.currentStory);
   renderReport(report);
+  
+  // Trigger AI semantic gap analysis (securely calling Vercel serverless /api/analyze)
+  // Only trigger if:
+  // 1. We are in Option 2 (Backlog mode - i.e., we have imported stories)
+  // 2. The mathematical score is below the 75% threshold
+  const aiContainer = document.getElementById('ai-gap-container');
+  const aiGapsList = document.getElementById('ai-gaps-list');
+  const aiRecsList = document.getElementById('ai-recs-list');
+  
+  if (state.importedStories.length > 0 && report.score < 75) {
+    aiContainer.style.display = 'block';
+    
+    // Retrieve linked OKR text
+    const okrText = getOkrTextForStory(state.currentStory);
+    const cacheKey = `${state.currentStory.id || 'custom'}_${report.score}`;
+    
+    if (aiAnalysisCache.has(cacheKey)) {
+      renderAiAnalysis(aiAnalysisCache.get(cacheKey));
+    } else {
+      // Loading state
+      aiGapsList.innerHTML = `<li style="list-style:none; color:var(--accent-primary);"><svg class="spinner" viewBox="0 0 50 50" style="width:16px;height:16px;vertical-align:middle;margin-right:8px;animation:rotate 2s linear infinite;"><circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="5" stroke-dasharray="1, 150" stroke-dashoffset="0" style="stroke-linecap:round;animation:dash 1.5s ease-in-out infinite;"></circle></svg>Analyzing OKR alignment gaps...</li>`;
+      aiRecsList.innerHTML = `<li style="list-style:none; color:var(--text-secondary);">Waiting for gap analysis...</li>`;
+      
+      fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ story: state.currentStory, okr: okrText })
+      })
+      .then(res => {
+        if (!res.ok) throw new Error('API request failed');
+        return res.json();
+      })
+      .then(data => {
+        aiAnalysisCache.set(cacheKey, data);
+        renderAiAnalysis(data);
+      })
+      .catch(err => {
+        aiGapsList.innerHTML = `<li style="list-style:none; color:var(--danger)">Error: ${err.message}</li>`;
+        aiRecsList.innerHTML = `<li style="list-style:none; color:var(--text-secondary)">Please check your GEMINI_API_KEY environment variable.</li>`;
+      });
+    }
+  } else {
+    aiContainer.style.display = 'none';
+  }
 }
 
 // Render the evaluated Quality Report
@@ -751,6 +804,9 @@ function renderImportedStoriesList() {
     item.onclick = () => selectImportedStory(idx);
     listContainer.appendChild(item);
   });
+  
+  // Render OKR scoreboard
+  renderOkrReadinessScoreboard();
 }
 
 // Select and load imported story into active editor
@@ -847,4 +903,169 @@ function toggleTheme() {
   } else {
     icon.innerHTML = `<svg viewBox="0 0 20 20" fill="currentColor" style="width:20px;height:20px;"><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.46 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/></svg>`;
   }
+}
+
+
+// Render OKR Readiness Scoreboard for imported backlog
+function renderOkrReadinessScoreboard() {
+  const scoreboard = document.getElementById('okr-readiness-scoreboard');
+  const okrList = document.getElementById('okr-readiness-list');
+  const badge = document.getElementById('overall-readiness-badge');
+  
+  if (!scoreboard || !okrList || !badge) return;
+  
+  if (state.importedStories.length === 0) {
+    scoreboard.style.display = 'none';
+    return;
+  }
+  
+  scoreboard.style.display = 'block';
+  
+  // Initialize OKR counters
+  const okrStats = {};
+  Object.keys(okrs).forEach(id => {
+    okrStats[id] = { total: 0, ready: 0, title: okrs[id].objective };
+  });
+  
+  let totalStories = 0;
+  let readyStories = 0;
+  
+  state.importedStories.forEach(s => {
+    const evaluation = evaluateStory(s);
+    const isReady = evaluation.score >= 75; // PO Alignment: 75%
+    
+    totalStories++;
+    if (isReady) readyStories++;
+    
+    // Find linked OKR
+    let okrId = '';
+    if (s.okr) {
+      okrId = s.okr.toUpperCase().trim();
+    } else if (s.epicId) {
+      const epic = epics[s.epicId.toUpperCase().trim()];
+      if (epic && epic.linkedOkrs && epic.linkedOkrs.length > 0) {
+        okrId = epic.linkedOkrs[0];
+      }
+    }
+    
+    if (okrStats[okrId]) {
+      okrStats[okrId].total++;
+      if (isReady) okrStats[okrId].ready++;
+    }
+  });
+  
+  // Render OKRs
+  okrList.innerHTML = '';
+  Object.keys(okrStats).forEach(id => {
+    const stat = okrStats[id];
+    if (stat.total === 0) return; // Skip OKRs with no stories
+    
+    const pct = Math.round((stat.ready / stat.total) * 100);
+    let barColor = 'var(--danger)';
+    if (pct >= 75) barColor = 'var(--success)';
+    else if (pct >= 50) barColor = 'var(--warning)';
+    
+    const item = document.createElement('div');
+    item.style.fontSize = '12px';
+    item.innerHTML = `
+      <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+        <span style="font-weight: 500; color: var(--text-primary); text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 80%;" title="${id}: ${stat.title}">
+          <strong>${id}</strong>: ${stat.title}
+        </span>
+        <span style="font-weight: 600; color: ${barColor}">${pct}% (${stat.ready}/${stat.total})</span>
+      </div>
+      <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden;">
+        <div style="width: ${pct}%; height: 100%; background: ${barColor}; border-radius: 3px; transition: width 0.3s ease;"></div>
+      </div>
+    `;
+    okrList.appendChild(item);
+  });
+  
+  // Overall readiness
+  const overallPct = totalStories > 0 ? Math.round((readyStories / totalStories) * 100) : 0;
+  badge.textContent = `${overallPct}% Ready`;
+  badge.className = `trace-badge ${overallPct >= 75 ? 'pass' : overallPct >= 50 ? 'warning' : 'fail'}`;
+}
+
+// Retrieve linked OKR text
+function getOkrTextForStory(story) {
+  let okrId = '';
+  if (story.okr) {
+    okrId = story.okr.toUpperCase().trim();
+  } else if (story.epicId) {
+    const epic = epics[story.epicId.toUpperCase().trim()];
+    if (epic && epic.linkedOkrs && epic.linkedOkrs.length > 0) {
+      okrId = epic.linkedOkrs[0];
+    }
+  }
+  
+  if (okrs[okrId]) {
+    return `${okrId}: ${okrs[okrId].objective}`;
+  }
+  
+  return story.okr || 'No strategic OKR linked';
+}
+
+// Render AI semantic gap analysis details
+function renderAiAnalysis(data) {
+  const aiGapsList = document.getElementById('ai-gaps-list');
+  const aiRecsList = document.getElementById('ai-recs-list');
+  
+  if (!aiGapsList || !aiRecsList) return;
+  
+  aiGapsList.innerHTML = '';
+  if (data.gaps && data.gaps.length > 0) {
+    data.gaps.forEach(gap => {
+      const li = document.createElement('li');
+      li.textContent = gap;
+      aiGapsList.appendChild(li);
+    });
+  } else {
+    aiGapsList.innerHTML = '<li style="list-style:none; color:var(--success)">✅ No critical functional gaps identified.</li>';
+  }
+  
+  aiRecsList.innerHTML = '';
+  if (data.recommendations && data.recommendations.length > 0) {
+    data.recommendations.forEach(rec => {
+      const li = document.createElement('li');
+      li.textContent = rec;
+      aiRecsList.appendChild(li);
+    });
+  } else {
+    aiRecsList.innerHTML = '<li style="list-style:none; color:var(--text-secondary)">No additional stories recommended.</li>';
+  }
+}
+
+// Downloadable CSV template for POs
+function downloadCSVTemplate() {
+  const headers = [
+    'Epic ID', 'Epic Title', 'Feature ID', 'Feature Title', 
+    'Story ID', 'Story Title', 'As A', 'I Want To', 'So That', 
+    'Acceptance Criteria', 'Story Points', 'Linked OKR', 'Impacted KPI'
+  ];
+  
+  const sampleRow = [
+    'E-01', 'Asset Ingestion & Centralized Repository', 'F-01.1', 'Multi-Source Automated Ingestion Pipeline',
+    'US-01.1.1', 'Cloud Storage Connector', 'DAM Administrator', 
+    'configure connections to external cloud storage buckets (S3, Azure Blob)', 
+    'assets stored in these buckets are automatically registered and crawled in the DAM system',
+    'Scenario: Valid S3 connection succeeds\nGiven I am logged in as a DAM Administrator\nWhen I navigate to Settings > Integrations\nThen the system validates the connection',
+    '5', 'OKR-1', 'Ingestion cycle time'
+  ];
+  
+  // Format as CSV
+  const csvContent = [
+    headers.map(h => `"${h.replace(/"/g, '""')}"`).join(','),
+    sampleRow.map(r => `"${r.replace(/"/g, '""')}"`).join(',')
+  ].join('\n');
+  
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'backlog_upload_template.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }

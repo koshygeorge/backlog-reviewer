@@ -384,9 +384,9 @@ export function evaluateStory(story) {
                  report.sections.traceability.score + 
                  report.sections.nfr.score;
 
-  // Story points check
-  if (storyPoints > 8) {
-    report.splitReasons.push(`High estimation of story points (${storyPoints} SP, recommended <= 8 for a single sprint).`);
+  // Story points check (PO aligned: stories >= 13 SP must be split)
+  if (storyPoints >= 13) {
+    report.splitReasons.push(`High estimation of story points (${storyPoints} SP, recommended < 13 for a single sprint).`);
   }
 
   if (report.splitReasons.length > 0) {
