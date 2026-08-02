@@ -2,6 +2,10 @@
 
 import { epics, okrs, exampleStories } from './data.js';
 import { evaluateStory } from './evaluator.js';
+import { getSettings, saveSettings } from './services/storage.js';
+import { fetchAzureDevOpsBacklog } from './services/connectors/azure_devops.js';
+import { fetchJiraBacklog } from './services/connectors/jira.js';
+import { analyzeStoryWithLLM } from './services/llm_bridge.js';
 
 // Global Application State
 let state = {
@@ -245,22 +249,29 @@ function runEvaluation() {
       aiGapsList.innerHTML = `<li style="list-style:none; color:var(--accent-primary);"><svg class="spinner" viewBox="0 0 50 50" style="width:16px;height:16px;vertical-align:middle;margin-right:8px;animation:rotate 2s linear infinite;"><circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="5" stroke-dasharray="1, 150" stroke-dashoffset="0" style="stroke-linecap:round;animation:dash 1.5s ease-in-out infinite;"></circle></svg>Analyzing OKR alignment gaps...</li>`;
       aiRecsList.innerHTML = `<li style="list-style:none; color:var(--text-secondary);">Waiting for gap analysis...</li>`;
       
-      fetch('/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ story: state.currentStory, okr: okrText })
-      })
-      .then(res => {
-        if (!res.ok) throw new Error('API request failed');
-        return res.json();
-      })
-      .then(data => {
-        aiAnalysisCache.set(cacheKey, data);
-        renderAiAnalysis(data);
-      })
-      .catch(err => {
-        aiGapsList.innerHTML = `<li style="list-style:none; color:var(--danger)">Error: ${err.message}</li>`;
-        aiRecsList.innerHTML = `<li style="list-style:none; color:var(--text-secondary)">Please check your GEMINI_API_KEY environment variable.</li>`;
+      // Client-Side BYOK Multi-LLM Call (Gemini, OpenAI, Claude)
+      getSettings().then(cfg => {
+        if (!cfg.llmApiKey) {
+          aiGapsList.innerHTML = `<li style="list-style:none; color:var(--warning)">⚠️ LLM API Key missing. Please click <strong>⚙️ Settings & Keys</strong> in the header to enter your API key.</li>`;
+          aiRecsList.innerHTML = `<li style="list-style:none; color:var(--text-secondary)">BYOK (Bring Your Own Key) ensures 100% client-side privacy.</li>`;
+          return;
+        }
+
+        analyzeStoryWithLLM({
+          story: state.currentStory,
+          okr: okrText,
+          provider: cfg.llmProvider,
+          model: cfg.llmModel,
+          apiKey: cfg.llmApiKey
+        })
+        .then(data => {
+          aiAnalysisCache.set(cacheKey, data);
+          renderAiAnalysis(data);
+        })
+        .catch(err => {
+          aiGapsList.innerHTML = `<li style="list-style:none; color:var(--danger)">Error (${cfg.llmProvider}): ${err.message}</li>`;
+          aiRecsList.innerHTML = `<li style="list-style:none; color:var(--text-secondary)">Please verify your API key in Settings.</li>`;
+        });
       });
     }
   } else {
@@ -801,13 +812,7 @@ function renderImportedStoriesList() {
       <span class="trace-badge ${badgeClass}" style="min-width:45px;">${evaluation.score}%</span>
     `;
 
-    item.onclick = () => selectImportedStory(idx);
-    listContainer.appendChild(item);
-  });
-  
-  // Render OKR scoreboard
-  renderOkrReadinessScoreboard();
-}
+
 
 // Select and load imported story into active editor
 function selectImportedStory(idx) {
@@ -1068,4 +1073,186 @@ function downloadCSVTemplate() {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+
+// Settings Modal & Backlog Connector Handlers
+document.addEventListener('DOMContentLoaded', () => {
+  initSettingsModal();
+  setupSyncBacklogButton();
+  
+  // Check if URL query contains ?settings=open
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('settings') === 'open') {
+    openSettingsModal();
+  }
+});
+
+function initSettingsModal() {
+  const settingsBtn = document.getElementById('settings-btn');
+  const modal = document.getElementById('settings-modal');
+  const closeBtn = document.getElementById('close-settings-modal');
+  const cancelBtn = document.getElementById('cancel-settings-btn');
+  const saveBtn = document.getElementById('save-settings-btn');
+  const providerSelect = document.getElementById('cfg-backlog-provider');
+  const llmProviderSelect = document.getElementById('cfg-llm-provider');
+  const llmModelSelect = document.getElementById('cfg-llm-model');
+
+  if (settingsBtn) settingsBtn.onclick = openSettingsModal;
+  if (closeBtn) closeBtn.onclick = closeSettingsModal;
+  if (cancelBtn) cancelBtn.onclick = closeSettingsModal;
+
+  if (providerSelect) {
+    providerSelect.onchange = (e) => toggleProviderFields(e.target.value);
+  }
+
+  if (llmProviderSelect) {
+    llmProviderSelect.onchange = (e) => updateModelOptions(e.target.value);
+  }
+
+  if (saveBtn) {
+    saveBtn.onclick = async () => {
+      const statusMsg = document.getElementById('settings-status-msg');
+      statusMsg.style.color = 'var(--accent-primary)';
+      statusMsg.textContent = 'Saving...';
+
+      const newSettings = {
+        backlogProvider: document.getElementById('cfg-backlog-provider').value,
+        adoOrgUrl: document.getElementById('cfg-ado-url').value.trim(),
+        adoProject: document.getElementById('cfg-ado-project').value.trim(),
+        adoPat: document.getElementById('cfg-ado-pat').value.trim(),
+        jiraDomain: document.getElementById('cfg-jira-domain').value.trim(),
+        jiraUserEmail: document.getElementById('cfg-jira-email').value.trim(),
+        jiraPat: document.getElementById('cfg-jira-pat').value.trim(),
+        llmProvider: document.getElementById('cfg-llm-provider').value,
+        llmModel: document.getElementById('cfg-llm-model').value,
+        llmApiKey: document.getElementById('cfg-llm-apikey').value.trim()
+      };
+
+      try {
+        await saveSettings(newSettings);
+        statusMsg.style.color = 'var(--success)';
+        statusMsg.textContent = '✅ Settings saved securely to browser sandbox!';
+        setTimeout(() => {
+          closeSettingsModal();
+          runEvaluation();
+        }, 800);
+      } catch (err) {
+        statusMsg.style.color = 'var(--danger)';
+        statusMsg.textContent = 'Error saving settings: ' + err.message;
+      }
+    };
+  }
+}
+
+async function openSettingsModal() {
+  const modal = document.getElementById('settings-modal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+
+  const cfg = await getSettings();
+  document.getElementById('cfg-backlog-provider').value = cfg.backlogProvider || 'csv';
+  document.getElementById('cfg-ado-url').value = cfg.adoOrgUrl || '';
+  document.getElementById('cfg-ado-project').value = cfg.adoProject || '';
+  document.getElementById('cfg-ado-pat').value = cfg.adoPat || '';
+  document.getElementById('cfg-jira-domain').value = cfg.jiraDomain || '';
+  document.getElementById('cfg-jira-email').value = cfg.jiraUserEmail || '';
+  document.getElementById('cfg-jira-pat').value = cfg.jiraPat || '';
+
+  document.getElementById('cfg-llm-provider').value = cfg.llmProvider || 'gemini';
+  updateModelOptions(cfg.llmProvider || 'gemini', cfg.llmModel);
+  document.getElementById('cfg-llm-apikey').value = cfg.llmApiKey || '';
+
+  toggleProviderFields(cfg.backlogProvider || 'csv');
+}
+
+function closeSettingsModal() {
+  const modal = document.getElementById('settings-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function toggleProviderFields(provider) {
+  const adoGroup = document.getElementById('ado-fields-group');
+  const jiraGroup = document.getElementById('jira-fields-group');
+
+  if (adoGroup) adoGroup.style.display = provider === 'azure_devops' ? 'block' : 'none';
+  if (jiraGroup) jiraGroup.style.display = provider === 'jira' ? 'block' : 'none';
+}
+
+function updateModelOptions(provider, selectedModel) {
+  const modelSelect = document.getElementById('cfg-llm-model');
+  if (!modelSelect) return;
+
+  modelSelect.innerHTML = '';
+  let models = [];
+
+  if (provider === 'openai') {
+    models = [
+      { val: 'gpt-4o-mini', text: 'GPT-4o Mini (Fast & Cost-Efficient)' },
+      { val: 'gpt-4o', text: 'GPT-4o (High Accuracy)' }
+    ];
+  } else if (provider === 'claude') {
+    models = [
+      { val: 'claude-3-5-sonnet-20241022', text: 'Claude 3.5 Sonnet (Recommended)' },
+      { val: 'claude-3-haiku-20240307', text: 'Claude 3 Haiku (Fast)' }
+    ];
+  } else {
+    // Gemini
+    models = [
+      { val: 'gemini-1.5-flash', text: 'Gemini 1.5 Flash (Fast & Default)' },
+      { val: 'gemini-1.5-pro', text: 'Gemini 1.5 Pro (Deep Context)' }
+    ];
+  }
+
+  models.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m.val;
+    opt.textContent = m.text;
+    if (selectedModel && selectedModel === m.val) opt.selected = true;
+    modelSelect.appendChild(opt);
+  });
+}
+
+function setupSyncBacklogButton() {
+  const syncBtn = document.getElementById('sync-backlog-btn');
+  const uploadStatus = document.getElementById('upload-status');
+  if (!syncBtn) return;
+
+  syncBtn.onclick = async () => {
+    const cfg = await getSettings();
+    uploadStatus.innerHTML = '<span style="color:var(--accent-primary)">Connecting to provider API...</span>';
+
+    try {
+      let stories = [];
+      if (cfg.backlogProvider === 'azure_devops') {
+        stories = await fetchAzureDevOpsBacklog({
+          orgUrl: cfg.adoOrgUrl,
+          project: cfg.adoProject,
+          pat: cfg.adoPat
+        });
+      } else if (cfg.backlogProvider === 'jira') {
+        stories = await fetchJiraBacklog({
+          domain: cfg.jiraDomain,
+          userEmail: cfg.jiraUserEmail,
+          pat: cfg.jiraPat
+        });
+      } else {
+        uploadStatus.innerHTML = '<span style="color:var(--warning)">Please configure Azure DevOps or Jira in Settings first.</span>';
+        openSettingsModal();
+        return;
+      }
+
+      if (stories.length > 0) {
+        state.importedStories = stories;
+        renderImportedStoriesList();
+        selectImportedStory(0);
+        switchTab('imported');
+        uploadStatus.innerHTML = `<span style="color:var(--success)">Successfully synced ${stories.length} stories from ${cfg.backlogProvider.toUpperCase()}!</span>`;
+      } else {
+        uploadStatus.innerHTML = `<span style="color:var(--warning)">No stories found in ${cfg.backlogProvider}.</span>`;
+      }
+    } catch (err) {
+      uploadStatus.innerHTML = `<span style="color:var(--danger)">Sync Error: ${err.message}</span>`;
+    }
+  };
 }

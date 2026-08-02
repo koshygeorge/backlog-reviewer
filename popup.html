@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Agile Backlog Quality Reviewer</title>
+  <style>
+    body {
+      width: 320px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #0f172a;
+      color: #f8fafc;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding-bottom: 10px;
+    }
+    .header h2 {
+      font-size: 15px;
+      margin: 0;
+      color: #38bdf8;
+    }
+    .header p {
+      font-size: 11px;
+      margin: 2px 0 0 0;
+      color: #94a3b8;
+    }
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .btn {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: opacity 0.2s ease;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #6366f1, #3b82f6);
+      color: white;
+    }
+    .btn-secondary {
+      background: rgba(255,255,255,0.06);
+      color: #e2e8f0;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .btn:hover {
+      opacity: 0.9;
+    }
+    .footer {
+      font-size: 10.5px;
+      color: #64748b;
+      text-align: center;
+      margin-top: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div style="font-size:22px;">🎯</div>
+    <div>
+      <h2>Agile Quality Portal</h2>
+      <p>OKR-Aligned Backlog Auditor</p>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="open-dashboard-btn" class="btn btn-primary">
+      🚀 Open Workspace Dashboard
+    </button>
+    <button id="open-settings-btn" class="btn btn-secondary">
+      ⚙️ Extension Settings & Keys
+    </button>
+  </div>
+
+  <div class="footer">
+    🔒 100% Client-side sandbox privacy
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

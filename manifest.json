@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Agile Backlog Quality Reviewer & OKR Auditor",
+  "version": "1.0.0",
+  "description": "Validate user stories against OKR, KPI, Gherkin BDD, and NFRs with BYOK multi-LLM support and Azure DevOps / Jira PAT connectors.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Agile Quality Reviewer"
+  },
+  "options_page": "index.html",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["index.html", "style.css", "app.js", "data.js", "evaluator.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
