@@ -784,6 +784,7 @@ function extractStoriesFromPdf(text) {
 // Render list of imported stories (CSV/PDF)
 function renderImportedStoriesList() {
   const listContainer = document.getElementById('imported-stories-list');
+  if (!listContainer) return;
   listContainer.innerHTML = '';
   
   if (state.importedStories.length === 0) {
@@ -812,7 +813,14 @@ function renderImportedStoriesList() {
       <span class="trace-badge ${badgeClass}" style="min-width:45px;">${evaluation.score}%</span>
     `;
 
-
+    item.onclick = () => selectImportedStory(idx);
+    listContainer.appendChild(item);
+  });
+  
+  // Render OKR scoreboard & Option 2 Hierarchy Tree
+  renderOkrReadinessScoreboard();
+  renderHierarchyTreeView();
+}
 
 // Select and load imported story into active editor
 function selectImportedStory(idx) {
@@ -830,7 +838,6 @@ function selectImportedStory(idx) {
   runEvaluation();
 }
 
-// Export Quality Assessment Report as Markdown file
 function exportReport() {
   const report = evaluateStory(state.currentStory);
   const epic = epics[state.currentStory.epicId];
