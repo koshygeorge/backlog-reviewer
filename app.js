@@ -6,6 +6,8 @@ import { getSettings, saveSettings } from './services/storage.js';
 import { fetchAzureDevOpsBacklog } from './services/connectors/azure_devops.js';
 import { fetchJiraBacklog } from './services/connectors/jira.js';
 import { analyzeStoryWithLLM } from './services/llm_bridge.js';
+import { checkAdminSession, verifyAdminPasscode, logoutAdmin } from './services/admin_auth.js';
+import { getVCMetricsData, generateVCOnePagerMarkdown } from './services/vc_analytics.js';
 
 // Global Application State
 let state = {
@@ -1262,4 +1264,194 @@ function setupSyncBacklogButton() {
       uploadStatus.innerHTML = `<span style="color:var(--danger)">Sync Error: ${err.message}</span>`;
     }
   };
+}
+
+
+// Admin Security & VC Dashboard Controllers
+document.addEventListener('DOMContentLoaded', () => {
+  initAdminDashboard();
+});
+
+function initAdminDashboard() {
+  const adminBtn = document.getElementById('admin-portal-btn');
+  const passcodeModal = document.getElementById('admin-passcode-modal');
+  const dashboardModal = document.getElementById('admin-dashboard-modal');
+  
+  const closePasscodeBtn = document.getElementById('close-passcode-modal');
+  const cancelPasscodeBtn = document.getElementById('cancel-passcode-btn');
+  const submitPasscodeBtn = document.getElementById('submit-passcode-btn');
+  const passcodeInput = document.getElementById('admin-passcode-input');
+  
+  const closeDashBtn = document.getElementById('close-admin-dashboard');
+  const closeDashBtn2 = document.getElementById('close-admin-dashboard-btn');
+  const exportVcBtn = document.getElementById('export-vc-report-btn');
+
+  if (adminBtn) {
+    adminBtn.onclick = () => {
+      if (checkAdminSession()) {
+        openVCDashboardModal();
+      } else {
+        openPasscodeModal();
+      }
+    };
+  }
+
+  if (closePasscodeBtn) closePasscodeBtn.onclick = closePasscodeModal;
+  if (cancelPasscodeBtn) cancelPasscodeBtn.onclick = closePasscodeModal;
+
+  if (submitPasscodeBtn) {
+    submitPasscodeBtn.onclick = () => {
+      const passcode = passcodeInput ? passcodeInput.value : '';
+      const errorMsg = document.getElementById('passcode-error-msg');
+      
+      if (verifyAdminPasscode(passcode)) {
+        if (errorMsg) errorMsg.style.display = 'none';
+        closePasscodeModal();
+        openVCDashboardModal();
+      } else {
+        if (errorMsg) errorMsg.style.display = 'block';
+      }
+    };
+  }
+
+  if (closeDashBtn) closeDashBtn.onclick = closeVCDashboardModal;
+  if (closeDashBtn2) closeDashBtn2.onclick = closeVCDashboardModal;
+  if (exportVcBtn) exportVcBtn.onclick = exportVCOnePagerReport;
+}
+
+function openPasscodeModal() {
+  const modal = document.getElementById('admin-passcode-modal');
+  const input = document.getElementById('admin-passcode-input');
+  const errorMsg = document.getElementById('passcode-error-msg');
+  if (input) input.value = '';
+  if (errorMsg) errorMsg.style.display = 'none';
+  if (modal) modal.style.display = 'flex';
+}
+
+function closePasscodeModal() {
+  const modal = document.getElementById('admin-passcode-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function openVCDashboardModal() {
+  const modal = document.getElementById('admin-dashboard-modal');
+  if (!modal) return;
+  
+  renderVCDashboardMetrics();
+  modal.style.display = 'flex';
+}
+
+function closeVCDashboardModal() {
+  const modal = document.getElementById('admin-dashboard-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+// Render dynamic metrics, charts, demographics, and funnel visualizers
+function renderVCDashboardMetrics() {
+  const data = getVCMetricsData();
+
+  // 1. ARR Growth Line/Bar Chart
+  const arrChartBox = document.getElementById('vc-arr-chart-container');
+  if (arrChartBox) {
+    arrChartBox.innerHTML = '';
+    const maxArr = 2000000;
+
+    data.arrTrajectory.forEach(item => {
+      const heightPct = Math.round((item.arr / maxArr) * 100);
+      const bar = document.createElement('div');
+      bar.style.flex = '1';
+      bar.style.display = 'flex';
+      bar.style.flexDirection = 'column';
+      bar.style.alignItems = 'center';
+      bar.style.height = '100%';
+      bar.style.justifyContent = 'flex-end';
+
+      const isEst = item.quarter.includes('Est');
+      const barColor = isEst ? 'var(--accent-secondary)' : 'var(--accent-primary)';
+
+      bar.innerHTML = `
+        <span style="font-size:9.5px; font-weight:700; color:${barColor}; margin-bottom:4px;">$${(item.arr/1000).toFixed(0)}K</span>
+        <div style="width:100%; height:${heightPct}%; background:${barColor}; border-radius:4px 4px 0 0; min-height:4px; opacity:0.85;"></div>
+        <span style="font-size:9px; color:var(--text-muted); margin-top:6px; white-space:nowrap; transform:rotate(-25deg); origin:left;">${item.quarter.replace(' (Est)', '')}</span>
+      `;
+      arrChartBox.appendChild(bar);
+    });
+  }
+
+  // 2. Conversion Funnel Visualizer
+  const funnelBox = document.getElementById('vc-funnel-container');
+  if (funnelBox) {
+    funnelBox.innerHTML = '';
+    data.conversionFunnel.forEach(step => {
+      const row = document.createElement('div');
+      row.className = 'funnel-row';
+      row.innerHTML = `
+        <div class="funnel-lbl" title="${step.step}">${step.step}</div>
+        <div class="funnel-track">
+          <div class="funnel-fill" style="width:${step.pct}%;"></div>
+        </div>
+        <div class="funnel-pct">${step.count.toLocaleString()}</div>
+      `;
+      funnelBox.appendChild(row);
+    });
+  }
+
+  // 3. Demographics by Persona
+  const rolesBox = document.getElementById('vc-roles-container');
+  if (rolesBox) {
+    rolesBox.innerHTML = '';
+    data.demographics.roleBreakdown.forEach(r => {
+      const item = document.createElement('div');
+      item.style.fontSize = '12px';
+      item.innerHTML = `
+        <div style="display:flex; justify-size:space-between; justify-content:space-between; margin-bottom:3px;">
+          <span><strong>${r.role}</strong></span>
+          <span style="color:var(--accent-primary); font-weight:600;">${r.percentage}% (${r.count.toLocaleString()} users)</span>
+        </div>
+        <div style="width:100%; height:6px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden;">
+          <div style="width:${r.percentage}%; height:100%; background:var(--accent-primary); border-radius:3px;"></div>
+        </div>
+      `;
+      rolesBox.appendChild(item);
+    });
+  }
+
+  // 4. Backlog Integration Market Share
+  const platformsBox = document.getElementById('vc-platforms-container');
+  if (platformsBox) {
+    platformsBox.innerHTML = '';
+    data.demographics.platformShare.forEach(p => {
+      const item = document.createElement('div');
+      item.style.fontSize = '12px';
+      let badgeColor = 'var(--accent-primary)';
+      if (p.badge === 'Leading') badgeColor = 'var(--success)';
+      if (p.badge === 'Legacy') badgeColor = 'var(--text-muted)';
+
+      item.innerHTML = `
+        <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+          <span><strong>${p.platform}</strong> <span style="font-size:10px; background:rgba(255,255,255,0.05); padding:1px 6px; border-radius:10px; color:${badgeColor};">${p.badge}</span></span>
+          <span style="font-weight:600; color:${badgeColor};">${p.percentage}%</span>
+        </div>
+        <div style="width:100%; height:6px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden;">
+          <div style="width:${p.percentage}%; height:100%; background:${badgeColor}; border-radius:3px;"></div>
+        </div>
+      `;
+      platformsBox.appendChild(item);
+    });
+  }
+}
+
+// Download Executive VC Summary One-Pager
+function exportVCOnePagerReport() {
+  const markdownText = generateVCOnePagerMarkdown();
+  
+  const blob = new Blob([markdownText], { type: 'text/markdown;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `vc_executive_one_pager_${new Date().toISOString().slice(0,10)}.md`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
