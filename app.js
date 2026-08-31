@@ -8,6 +8,8 @@ import { fetchJiraBacklog } from './services/connectors/jira.js';
 import { analyzeStoryWithLLM } from './services/llm_bridge.js';
 import { checkAdminSession, verifyAdminPasscode, logoutAdmin } from './services/admin_auth.js';
 import { getVCMetricsData, generateVCOnePagerMarkdown } from './services/vc_analytics.js';
+import { generateCucumberFeatureFile, generatePlaywrightTestFile } from './services/bdd_exporter.js';
+import { saveFeedback, getFeedbackHistory } from './services/feedback_store.js';
 
 // Global Application State
 let state = {
@@ -1455,3 +1457,82 @@ function exportVCOnePagerReport() {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+
+// BDD Feature Export Handler & RLHF Feedback Controllers
+document.addEventListener('DOMContentLoaded', () => {
+  const exportBddBtn = document.getElementById('export-bdd-btn');
+  if (exportBddBtn) {
+    exportBddBtn.onclick = exportBddFeatureFile;
+  }
+});
+
+function exportBddFeatureFile() {
+  const featureContent = generateCucumberFeatureFile(state.currentStory);
+  const storyId = state.currentStory.id || 'story';
+  
+  const blob = new Blob([featureContent], { type: 'text/plain;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${storyId}_executable.feature`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// Global window function for AI recommendation feedback
+window.recordRecommendationFeedback = async function(recIndex, status, buttonEl) {
+  const recs = document.querySelectorAll('#ai-recs-list li');
+  if (recs[recIndex]) {
+    const recText = recs[recIndex].textContent.replace('👍 Accept', '').replace('👎 Dismiss', '').trim();
+    await saveFeedback(state.currentStory.id || 'US-001', recText, status);
+    
+    if (buttonEl && buttonEl.parentElement) {
+      buttonEl.parentElement.innerHTML = status === 'accepted'
+        ? '<span style="color:var(--success); font-weight:600; font-size:11px;">✅ Accepted into backlog</span>'
+        : '<span style="color:var(--text-muted); font-size:11px;">❌ Recommendation dismissed</span>';
+    }
+  }
+};
+
+// Intercept renderAiAnalysis to append feedback buttons
+const originalRenderAiAnalysis = window.renderAiAnalysis;
+window.renderAiAnalysis = function(data) {
+  const aiGapsList = document.getElementById('ai-gaps-list');
+  const aiRecsList = document.getElementById('ai-recs-list');
+
+  aiGapsList.innerHTML = '';
+  if (data.gaps && data.gaps.length > 0) {
+    data.gaps.forEach(gap => {
+      const li = document.createElement('li');
+      li.textContent = gap;
+      aiGapsList.appendChild(li);
+    });
+  } else {
+    aiGapsList.innerHTML = '<li style="list-style:none; color:var(--success)">✅ No critical functional gaps identified.</li>';
+  }
+
+  aiRecsList.innerHTML = '';
+  if (data.recommendations && data.recommendations.length > 0) {
+    data.recommendations.forEach((rec, idx) => {
+      const li = document.createElement('li');
+      li.style.display = 'flex';
+      li.style.justifyContent = 'space-between';
+      li.style.alignItems = 'center';
+      li.style.marginBottom = '6px';
+      
+      li.innerHTML = `
+        <span style="flex:1; margin-right:8px;">${rec}</span>
+        <div style="display:flex; gap:4px; shrink:0;">
+          <button class="btn btn-secondary btn-sm" onclick="recordRecommendationFeedback(${idx}, 'accepted', this)" style="font-size:10px; padding:2px 6px; border-color:var(--success); color:var(--success);">👍 Accept</button>
+          <button class="btn btn-secondary btn-sm" onclick="recordRecommendationFeedback(${idx}, 'dismissed', this)" style="font-size:10px; padding:2px 6px; border-color:var(--text-muted); color:var(--text-muted);">👎 Dismiss</button>
+        </div>
+      `;
+      aiRecsList.appendChild(li);
+    });
+  } else {
+    aiRecsList.innerHTML = '<li style="list-style:none; color:var(--text-secondary)">No additional stories recommended.</li>';
+  }
+};

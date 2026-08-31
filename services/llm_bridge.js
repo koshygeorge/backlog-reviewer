@@ -1,10 +1,15 @@
 // Client-Side Multi-LLM Provider Bridge (BYOK - Bring Your Own Key)
-// Executes direct client-side fetch requests to Gemini, OpenAI, or Claude directly from browser sandbox.
+// Direct client-side requests to Gemini, OpenAI, or Claude with optional DLP Sanitization.
 
-export async function analyzeStoryWithLLM({ story, okr, provider, model, apiKey }) {
+import { sanitizeStoryObject } from './dlp_sanitizer.js';
+
+export async function analyzeStoryWithLLM({ story, okr, provider, model, apiKey, enableDlp = true }) {
   if (!apiKey) {
     throw new Error('LLM API Key is missing. Please enter your API Key in Settings.');
   }
+
+  // Apply DLP pre-call sanitization if enabled
+  const processedStory = enableDlp ? sanitizeStoryObject(story) : story;
 
   const systemPrompt = `You are a senior agile coach and product manager.
 Audit the following user story against the strategic OKR.
@@ -16,7 +21,7 @@ Return ONLY clean JSON in this format:
   "recommendations": ["rec 1", "rec 2"]
 }`;
 
-  const userPrompt = `User Story:\n${JSON.stringify(story, null, 2)}\n\nStrategic OKR:\n"${okr}"`;
+  const userPrompt = `User Story:\n${JSON.stringify(processedStory, null, 2)}\n\nStrategic OKR:\n"${okr}"`;
 
   if (provider === 'openai') {
     return await callOpenAI({ model: model || 'gpt-4o-mini', apiKey, systemPrompt, userPrompt });
